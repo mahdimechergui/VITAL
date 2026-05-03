@@ -1,0 +1,8 @@
+node_modules/
+.expo/
+build/
+dist/
+my-app/node_modules/
+my-app/.expo/
+.DS_Store
+.env
