@@ -177,21 +177,38 @@ const archivistAgent = async (req, res) => {
     const { question } = req.body;
     console.log(`🔍 Archivist hit with question: "${question}"`);
 
-    const data = readExcelFile("./data/dataset.xlsx");
-    console.log(`📊 Excel loaded: ${data.length} rows found.`);
+    const { createClient } = require('@supabase/supabase-js');
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const words = question.toLowerCase().replace(/[^\w\s]/gi, '').split(/\s+/).filter(w => w.length > 2);
     
     let results = [];
-    if (words.length > 0) {
-      results = data.map(row => {
-        const text = Object.values(row).join(" ").toLowerCase();
+    
+    // 1. Fetch Events from Supabase
+    const { data: events } = await supabase.from('events').select('*');
+    if (events && words.length > 0) {
+      events.forEach(e => {
+        const text = JSON.stringify(e).toLowerCase();
         const score = words.reduce((acc, word) => acc + (text.includes(word) ? 1 : 0), 0);
-        return { row, score };
-      }).filter(r => r.score > 0).sort((a, b) => b.score - a.score).map(r => r.row);
+        if (score > 0) results.push({ row: e, score });
+      });
     }
 
-    console.log(`🎯 Search results: ${results.length} matches.`);
+    // 2. Fetch Sponsors from Supabase
+    const { data: sponsors } = await supabase.from('sponsors').select('*');
+    if (sponsors && words.length > 0) {
+      sponsors.forEach(s => {
+        const text = JSON.stringify(s).toLowerCase();
+        const score = words.reduce((acc, word) => acc + (text.includes(word) ? 1 : 0), 0);
+        if (score > 0) results.push({ row: s, score });
+      });
+    }
+
+    // Sort and format the best matching rows
+    results = results.sort((a, b) => b.score - a.score).map(r => r.row);
+    console.log(`🎯 Search results: ${results.length} matches found in Supabase.`);
 
     const context = results.slice(0, 10).map(row => {
         return Object.entries(row).map(([k, v]) => `${k}: ${v}`).join("\n");
@@ -207,13 +224,13 @@ const archivistAgent = async (req, res) => {
         messages: [
           {
             role: "system",
-            content: "You are the Archivist AI of a university club. Answer the user politely. Use the provided context to answer factually. If the context is empty or lacks the answer, use your general knowledge but clarify that you couldn't find specific club records."
+            content: "You are the Archivist AI of a university club. Answer the user politely. Use the provided context to answer factually. If the context is empty or lacks the answer, use your general knowledge but clarify that you couldn't find specific club records in the Supabase database."
           },
           {
             role: "user",
             content: `
 Context:
-${context || 'No specific club records found.'}
+${context || 'No specific club records found in database.'}
 
 Question:
 ${question}
@@ -237,6 +254,7 @@ ${question}
     });
 
   } catch (err) {
+    console.error(err);
     return res.status(500).json({ error: err.message });
   }
 };

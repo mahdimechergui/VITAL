@@ -39,7 +39,7 @@ export default function AdminDashboard() {
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [manageRequestsVisible, setManageRequestsVisible] = useState(false);
   const [isRequestsLoading, setIsRequestsLoading] = useState(false);
-  const [requestsEventId, setRequestsEventId] = useState<number | null>(null);
+  const [requestsEventId, setRequestsEventId] = useState<string | number | null>(null);
 
   const [sponsorModalVisible, setSponsorModalVisible] = useState(false);
   const [editingSponsor, setEditingSponsor] = useState<any>(null);
@@ -75,27 +75,27 @@ export default function AdminDashboard() {
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   // --- CRUD Functions (Identical to before) ---
-  const handleUpdateRole = async (id: number, newRole: string) => {
+  const handleUpdateRole = async (id: string | number, newRole: string) => {
     try { await updateMemberRole(id, newRole); setMembers(prev => prev.map(m => m.id === id ? { ...m, role: newRole } : m)); } catch (e: any) {}
   };
 
-  const handleDeleteUser = async (id: number) => {
+  const handleDeleteUser = async (id: string | number) => {
     Alert.alert('Delete User', 'Permanently delete?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: async () => { try { await deleteMember(id); setMembers(prev => prev.filter(m => m.id !== id)); } catch (e: any) {} }}]);
   };
 
-  const handleBlockUser = async (id: number) => {
+  const handleBlockUser = async (id: string | number) => {
     Alert.alert('Blacklist', 'Blacklist user?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Blacklist', style: 'destructive', onPress: async () => { try { await blockMember(id); setMembers(prev => prev.map(m => m.id === id ? { ...m, is_blacklisted: true, status: 'banned' } : m)); } catch (e: any) {} }}]);
   };
 
-  const handleUnblockUser = async (id: number) => {
+  const handleUnblockUser = async (id: string | number) => {
       try { await unblockMember(id); setMembers(prev => prev.map(m => m.id === id ? { ...m, is_blacklisted: false, status: 'active' } : m)); } catch (e: any) {}
   };
 
-  const handleDeleteEvent = async (id: number) => {
+  const handleDeleteEvent = async (id: string | number) => {
     Alert.alert('Delete Event', 'Permanently delete?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: async () => { try { await adminDeleteEvent(id); setEvents(prev => prev.filter(e => e.id !== id)); } catch (e: any) {} }}]);
   };
 
-  const handleDeleteSponsor = async (id: number) => {
+  const handleDeleteSponsor = async (id: string | number) => {
     Alert.alert('Delete Sponsor', 'Delete this sponsor?', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: async () => { try { await deleteSponsor(id); setSponsors(prev => prev.filter(s => s.id !== id)); } catch (e: any) {} }}]);
   };
 
@@ -123,7 +123,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const openManageRequests = async (eventId: number) => {
+  const openManageRequests = async (eventId: string | number) => {
     setRequestsEventId(eventId);
     setManageRequestsVisible(true);
     setIsRequestsLoading(true);
@@ -137,7 +137,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleApproveRequest = async (reqId: number) => { 
+  const handleApproveRequest = async (reqId: string | number) => { 
     try { 
       await approveRequest(reqId); 
       // Refresh current list
@@ -147,7 +147,7 @@ export default function AdminDashboard() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: any) { Alert.alert('Error', e.message); } 
   };
-  const handleRejectRequest = async (reqId: number) => { 
+  const handleRejectRequest = async (reqId: string | number) => { 
     try { 
       await rejectRequest(reqId); 
       if (requestsEventId) fetchEventRequests(requestsEventId).then(setEventRequests);

@@ -6,6 +6,7 @@ import * as Google from 'expo-auth-session/providers/google';
 
 import { ThemedText } from '@/components/themed-text';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/services/supabaseClient';
 import { BASE_URL } from '@/app/services/api';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -50,125 +51,108 @@ export default function LoginScreen() {
 
   const handleGoogleAuth = async (idToken: string) => {
     console.log('🔐 [GOOGLE_AUTH] handleGoogleAuth called');
-    console.log('🔐 [GOOGLE_AUTH] ID Token present:', !!idToken);
-    console.log('🔐 [GOOGLE_AUTH] ID Token length:', idToken.length);
-
     setIsLoading(true);
 
-    const googleAuthUrl = `${BASE_URL}/auth/google`;
-    console.log('🔐 [GOOGLE_AUTH] Making request to:', googleAuthUrl);
-
     try {
-      console.log('🔐 [GOOGLE_AUTH] Sending POST request...');
-      const res = await fetch(googleAuthUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken })
+      console.log('🔐 [GOOGLE_AUTH] Authenticating with Supabase...');
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'google',
+        token: idToken,
       });
 
-      console.log('🔐 [GOOGLE_AUTH] Response received');
-      console.log('🔐 [GOOGLE_AUTH] Response status:', res.status);
-      console.log('🔐 [GOOGLE_AUTH] Response ok:', res.ok);
-
-      const data = await res.json();
-      console.log('🔐 [GOOGLE_AUTH] Response data:', data);
-
-      if (!res.ok) {
-        console.log('❌ [GOOGLE_AUTH] Response not ok, throwing error');
-        throw new Error(data.message || 'Google Authentication failed');
-      }
-
+      if (error) throw error;
+      
       console.log('✅ [GOOGLE_AUTH] Google auth successful');
-      console.log('🔐 [GOOGLE_AUTH] Calling login function...');
-      await login(data.user, data.token);
-      console.log('✅ [GOOGLE_AUTH] Login completed');
+
+      // Create/update user profile if needed
+      if (data.user) {
+        await supabase
+          .from('users')
+          .upsert({
+            id: data.user.id,
+            email: data.user.email,
+            full_name: data.user.user_metadata?.full_name || data.user.email,
+            avatar_url: data.user.user_metadata?.avatar_url,
+            role: 'member'
+          }, { onConflict: 'id' });
+      }
 
       console.log('🔐 [GOOGLE_AUTH] Navigating to /(tabs)...');
       router.replace('/(tabs)');
-      console.log('✅ [GOOGLE_AUTH] Navigation completed');
 
     } catch (e: any) {
-      console.log('❌ [GOOGLE_AUTH] Error occurred:', e);
-      console.log('❌ [GOOGLE_AUTH] Error message:', e.message);
-      console.log('❌ [GOOGLE_AUTH] Error stack:', e.stack);
+      console.log('❌ [GOOGLE_AUTH] Error occurred:', e.message);
       Alert.alert('Google Auth Error', e.message);
     } finally {
-      console.log('🔐 [GOOGLE_AUTH] Setting loading to false');
       setIsLoading(false);
     }
   };
 
   const handleAuth = async () => {
     console.log('🔐 [AUTH] Starting authentication process...');
-    console.log('🔐 [AUTH] Form data:', {
-      isLogin,
-      email: email.trim(),
-      hasPassword: !!password,
-      hasName: !!name
-    });
 
     if (!email || !password || (!isLogin && !name)) {
-      console.log('❌ [AUTH] Validation failed: Missing required fields');
       Alert.alert('Error', 'Please fill in all required fields');
       return;
     }
-
-    console.log('🔐 [AUTH] Validation passed, setting loading state...');
     setIsLoading(true);
 
-    const endpoint = isLogin ? '/auth/login' : '/auth/register';
-    const fullUrl = `${BASE_URL}${endpoint}`;
-
-    console.log('🔐 [AUTH] Making request to:', fullUrl);
-    console.log('🔐 [AUTH] Request method: POST');
-    console.log('🔐 [AUTH] Request headers:', { 'Content-Type': 'application/json' });
-
-    const requestBody = isLogin
-      ? { email: email.trim(), password }
-      : { name: name.trim(), email: email.trim(), password };
-
-    console.log('🔐 [AUTH] Request body:', requestBody);
-
     try {
-      console.log('🔐 [AUTH] Sending fetch request...');
-      const response = await fetch(fullUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
+      if (isLogin) {
+        console.log('🔐 [AUTH] Attempting Supabase sign-in...');
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
 
-      console.log('🔐 [AUTH] Response received!');
-      console.log('🔐 [AUTH] Response status:', response.status);
-      console.log('🔐 [AUTH] Response statusText:', response.statusText);
-      console.log('🔐 [AUTH] Response headers:', Object.fromEntries(response.headers.entries()));
+        if (error) throw error;
+        console.log('✅ [AUTH] Supabase sign-in successful');
+      } else {
+        console.log('🔐 [AUTH] Attempting Supabase sign-up...');
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: {
+              name: name.trim(),
+            }
+          }
+        });
 
-      const data = await response.json();
-      console.log('🔐 [AUTH] Response data:', data);
-
-      if (!response.ok) {
-        console.log('❌ [AUTH] Response not OK, throwing error...');
-        throw new Error(data.message || 'Authentication failed');
+        if (error) throw error;
+        console.log('✅ [AUTH] Supabase sign-up successful');
+        
+        // If email confirmation is required, handle it here
+        if (data.session === null) {
+          Alert.alert('Success', 'Please check your inbox for email verification!');
+          setIsLoading(false);
+          return;
+        }
+        
+        // Create user profile in 'users' table
+        if (data.user) {
+          const { error: profileError } = await supabase
+            .from('users')
+            .upsert({
+              id: data.user.id,
+              email: data.user.email,
+              full_name: name.trim(),
+              role: 'member'
+            });
+            
+          if (profileError) {
+            console.error('Failed to create user profile:', profileError);
+          }
+        }
       }
-
-      console.log('✅ [AUTH] Authentication successful!');
-      console.log('✅ [AUTH] User data:', data.user);
-      console.log('✅ [AUTH] Token received:', !!data.token);
-
-      console.log('🔐 [AUTH] Calling login function...');
-      await login(data.user, data.token);
-      console.log('✅ [AUTH] Login function completed');
 
       console.log('🔐 [AUTH] Navigating to /(tabs)...');
       router.replace('/(tabs)');
-      console.log('✅ [AUTH] Navigation completed');
-
+      
     } catch (e: any) {
-      console.log('❌ [AUTH] Error occurred:', e);
-      console.log('❌ [AUTH] Error message:', e.message);
-      console.log('❌ [AUTH] Error stack:', e.stack);
+      console.log('❌ [AUTH] Error occurred:', e.message);
       Alert.alert('Authentication Error', e.message);
     } finally {
-      console.log('🔐 [AUTH] Setting loading to false');
       setIsLoading(false);
     }
   };

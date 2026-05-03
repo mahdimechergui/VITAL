@@ -1,5 +1,5 @@
 export type EventItem = {
-  id: number;
+  id: string | number;
   name: string;
   date: string;
   time: string;
@@ -11,7 +11,7 @@ export type EventItem = {
 };
 
 export type MemberRecord = {
-  id: number;
+  id: string | number;
   name: string;
   email: string;
   phone: string;

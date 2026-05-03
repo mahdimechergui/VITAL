@@ -33,7 +33,7 @@ export default function MembersScreen() {
     [(member.name || ''), (member.email || ''), (member.role || '')].some((field) => field.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const handleDeleteUser = async (id: number) => {
+  const handleDeleteUser = async (id: string | number) => {
     Alert.alert('Delete User', 'Are you sure you want to permanently delete this user?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
@@ -47,7 +47,7 @@ export default function MembersScreen() {
     ]);
   };
 
-  const handleUpdateRole = async (id: number, newRole: string) => {
+  const handleUpdateRole = async (id: string | number, newRole: string) => {
     try {
       await updateMemberRole(id, newRole);
       setMembers(prev => prev.map(m => m.id === id ? { ...m, role: newRole } : m));
@@ -56,7 +56,7 @@ export default function MembersScreen() {
     }
   };
 
-  const handleBlockUser = async (id: number) => {
+  const handleBlockUser = async (id: string | number) => {
     Alert.alert('Blacklist User', 'Are you sure you want to permanently blacklist this user? They will not be able to log in.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Blacklist', style: 'destructive', onPress: async () => {
@@ -70,7 +70,7 @@ export default function MembersScreen() {
     ]);
   };
 
-  const handleUnblockUser = async (id: number) => {
+  const handleUnblockUser = async (id: string | number) => {
       try {
         await unblockMember(id);
         setMembers(prev => prev.map(m => m.id === id ? { ...m, is_blacklisted: false, status: 'active' } : m));

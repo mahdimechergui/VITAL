@@ -84,7 +84,7 @@ export default function EventsScreen() {
 
   // User Join Request State
   const [joinModalVisible, setJoinModalVisible] = useState(false);
-  const [joinEventId, setJoinEventId] = useState<number | null>(null);
+  const [joinEventId, setJoinEventId] = useState<string | number | null>(null);
   const [joinMessage, setJoinMessage] = useState('');
   const [isSubmittingJoin, setIsSubmittingJoin] = useState(false);
   
@@ -92,7 +92,7 @@ export default function EventsScreen() {
   const [manageRequestsVisible, setManageRequestsVisible] = useState(false);
   const [selectedEventRequests, setSelectedEventRequests] = useState<any[]>([]);
   const [isRequestsLoading, setIsRequestsLoading] = useState(false);
-  const [requestsEventId, setRequestsEventId] = useState<number | null>(null);
+  const [requestsEventId, setRequestsEventId] = useState<string | number | null>(null);
 
   const openEventModal = (event: any = null) => {
     if (event) {
@@ -143,7 +143,7 @@ export default function EventsScreen() {
     }
   };
 
-  const handleDeleteEvent = async (id: number) => {
+  const handleDeleteEvent = async (id: string | number) => {
     Alert.alert('Delete Event', 'Are you sure you want to delete this event?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
@@ -187,7 +187,7 @@ export default function EventsScreen() {
     }
   };
 
-  const openJoinModal = (id: number) => {
+  const openJoinModal = (id: string | number) => {
      setJoinEventId(id);
      setJoinMessage('');
      setJoinModalVisible(true);
@@ -207,7 +207,7 @@ export default function EventsScreen() {
      }
   };
 
-  const openManageRequests = async (eventId: number) => {
+  const openManageRequests = async (eventId: string | number) => {
     setRequestsEventId(eventId);
     setManageRequestsVisible(true);
     setIsRequestsLoading(true);
